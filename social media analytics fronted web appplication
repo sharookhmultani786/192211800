@@ -8,6 +8,14 @@
 </head>
 <body class="bg-gray-100">
 
+  <!-- Host Link Banner -->
+  <div class="bg-blue-100 border border-blue-300 text-blue-800 p-3 mb-6 rounded text-center">
+    API Host Link:
+    <a href="http://20.244.56.144/evaluation-service" class="underline text-blue-700" target="_blank">
+      http://20.244.56.144/evaluation-service
+    </a>
+  </div>
+
   <div class="max-w-xl mx-auto mt-10 p-4" id="app">
     <h1 class="text-2xl font-bold mb-4">Register</h1>
     <div class="bg-white p-4 rounded shadow space-y-3" id="registerForm">
