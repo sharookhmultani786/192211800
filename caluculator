@@ -1,0 +1,116 @@
+const express = require("express");
+const axios = require("axios");
+const path = require("path");
+const cors = require("cors");
+
+const app = express();
+const PORT = 9876;
+const WINDOW_SIZE = 10;
+let numberWindow = [];
+
+const TYPE_MAP = {
+  p: "primes",
+  f: "fibo",
+  e: "even",
+  r: "rand",
+};
+
+const BASE_URL = "http://20.244.56.144/evaluation-service";
+
+app.use(cors());
+
+// Serve frontend HTML
+app.get("/", (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Number API Client</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; background: #f2f2f2; }
+          h2 { color: #333; }
+          input, button { padding: 10px; font-size: 16px; margin-top: 10px; }
+          pre { background: #fff; padding: 15px; border-radius: 5px; margin-top: 15px; }
+          ul { background: #fff; padding: 10px; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <h2>📊 Number Stream API Client</h2>
+        <p>Available options:</p>
+        <ul>
+          <li><strong>p</strong>: Prime Numbers → <code>/primes</code></li>
+          <li><strong>f</strong>: Fibonacci Numbers → <code>/fibo</code></li>
+          <li><strong>e</strong>: Even Numbers → <code>/even</code></li>
+          <li><strong>r</strong>: Random Numbers → <code>/rand</code></li>
+        </ul>
+        <input type="text" id="numberid" placeholder="Enter number type (p, f, e, r)" />
+        <button onclick="fetchData()">Fetch Numbers</button>
+        <pre id="result"></pre>
+
+        <script>
+          async function fetchData() {
+            const id = document.getElementById("numberid").value.trim();
+            const resultEl = document.getElementById("result");
+            resultEl.textContent = "Loading...";
+
+            try {
+              const response = await fetch(\`/numbers/\${id}\`);
+              const data = await response.json();
+              resultEl.textContent = JSON.stringify(data, null, 2);
+            } catch (err) {
+              resultEl.textContent = "Error fetching data.";
+            }
+          }
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+// API Endpoint
+app.get("/numbers/:numberid", async (req, res) => {
+  const { numberid } = req.params;
+  const endpoint = TYPE_MAP[numberid];
+
+  if (!endpoint) {
+    return res.status(400).json({ error: "Invalid numberid. Use p, f, e, or r only." });
+  }
+
+  const url = `${BASE_URL}/${endpoint}`;
+  const windowPrevState = [...numberWindow];
+  let fetchedNumbers = [];
+
+  try {
+    const response = await axios.get(url, { timeout: 500 });
+    fetchedNumbers = response.data.numbers || [];
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to fetch numbers from third-party API (timeout or error).",
+    });
+  }
+
+  for (let num of fetchedNumbers) {
+    if (!numberWindow.includes(num)) {
+      numberWindow.push(num);
+    }
+  }
+
+  while (numberWindow.length > WINDOW_SIZE) {
+    numberWindow.shift();
+  }
+
+  const avg = numberWindow.length
+    ? parseFloat((numberWindow.reduce((sum, n) => sum + n, 0) / numberWindow.length).toFixed(2))
+    : 0;
+
+  res.json({
+    windowPrevState,
+    windowCurrState: numberWindow,
+    numbers: fetchedNumbers,
+    avg,
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+});
